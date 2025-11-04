@@ -31,18 +31,21 @@ net.bridge.bridge-nf-call-ip6tables = 1
 net.bridge.bridge-nf-call-iptables = 1
 net.ipv4.ip_forward = 1
 EOF
-sudo sysctl --system
+sudo sysctl --system 2>/dev/null
 
-echo "[Step 4] 啟用 kubelet"
-sudo systemctl enable kubelet
 
-echo "[Step 5] 安裝 Kubernetes $K8S_VERSION"
+echo "[Step 4] 安裝 Kubernetes $K8S_VERSION"
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://pkgs.k8s.io/core:/stable:/${K8S_VERSION}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/${K8S_VERSION}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 sudo apt update -y
 sudo apt install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
+
+echo "[Step 5] 啟用 kubelet"
+sudo systemctl enable kubelet
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
 
 ### 清理舊叢集 ###
 echo "[Cleanup] 檢查是否有舊叢集殘留"
@@ -75,7 +78,6 @@ if [ "$1" == "master" ]; then
     if [ ! -f /opt/cni/bin/calico ] || [ ! -f /opt/cni/bin/calico-ipam ]; then
         echo "[CNI Fix] 未找到 Calico plugin，嘗試修復..."
         sudo mkdir -p /opt/cni/bin
-        # 嘗試從常見路徑複製（支援 containerd 環境）
         sudo cp -r /var/lib/rancher/rke2/data/*/bin/* /opt/cni/bin/ 2>/dev/null || true
         sudo cp -r /usr/lib/cni/* /opt/cni/bin/ 2>/dev/null || true
         sudo systemctl restart containerd

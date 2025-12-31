@@ -20,6 +20,10 @@ echo "[Step 1] 更新系統套件"
 sudo apt update -y
 sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release net-tools
 
+sudo apt-get update
+sudo apt-get install -y conntrack socat ebtables ethtool ipset
+which conntrack && conntrack -V
+
 echo "[Step 2] 安裝 Containerd"
 sudo apt install -y containerd
 sudo mkdir -p /etc/containerd
@@ -98,6 +102,28 @@ for i in {1..30}; do
   sleep 10
 done
 
+echo "重啟calico 設定擋"
+
+
+sudo systemctl stop kubelet
+
+sudo rm -rf /etc/cni/net.d /var/lib/cni /var/log/calico /var/run/calico
+sudo mkdir -p /etc/cni/net.d /var/lib/cni
+sudo chmod 755 /etc/cni/net.d
+
+sudo mkdir -p /opt/cni/bin
+sudo chmod 755 /opt/cni/bin
+
+sudo systemctl restart containerd
+sudo systemctl restart kubelet
+
+kubectl -n kube-system delete pod -l k8s-app=calico-node
+
+
+
 echo "[完成] Master 安裝完成 ✅"
 echo "請用以下指令加入 worker 節點："
 kubeadm token create --print-join-command
+
+
+
